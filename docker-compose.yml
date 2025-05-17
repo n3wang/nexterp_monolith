@@ -1,0 +1,27 @@
+version: "3"
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  erpnext:
+    build: .
+    depends_on:
+      - mariadb
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mariadb
+      DB_ROOT_PASSWORD: root
+      SITE_NAME: site.local
+    volumes:
+      - frappe_data:/home/frappe
+
+volumes:
+  mariadb_data:
+  frappe_data:
