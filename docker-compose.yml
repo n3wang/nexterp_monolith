@@ -1,11 +1,27 @@
+version: "3"
+
 services:
-  erpnext:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+  mariadb:
+    image: mariadb:10.6
+    restart: always
     environment:
-      - DB_HOST=${DB_HOST:-mariadb}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root}
-      - SITE_NAME=${SITE_NAME:-site.local}
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  erpnext:
+    build: .
+    depends_on:
+      - mariadb
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mariadb
+      DB_ROOT_PASSWORD: root
+      SITE_NAME: site.local
+    volumes:
+      - frappe_data:/home/frappe
+
+volumes:
+  mariadb_data:
+  frappe_data:

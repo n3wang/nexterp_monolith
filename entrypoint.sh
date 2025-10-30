@@ -35,4 +35,4 @@ else
 fi
 
 bench use site.local
-bench serve --port 8080 --host 0.0.0.0
+bench start
