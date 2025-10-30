@@ -22,6 +22,9 @@ RUN pip3 install frappe-bench
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Expose port
+EXPOSE 8080
+
 USER frappe
 WORKDIR /home/frappe
 
