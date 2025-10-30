@@ -7,7 +7,7 @@ DB_TYPE=${DB_TYPE:-postgres}
 if [ "$DB_TYPE" = "postgres" ]; then
     # Wait for PostgreSQL to be ready
     echo "⏳ Waiting for PostgreSQL at $DB_HOST..."
-    until PGPASSWORD="$DB_ROOT_PASSWORD" psql -h "$DB_HOST" -U "$DB_ROOT_USER" -d postgres -c "SELECT 1;" &>/dev/null; do
+    until PGPASSWORD="${DB_PASSWORD:-$DB_ROOT_PASSWORD}" psql -h "$DB_HOST" -U "${DB_USER:-$DB_ROOT_USER}" -d postgres -c "SELECT 1;" &>/dev/null; do
         echo "⏳ Still waiting for PostgreSQL..."
         sleep 2
     done
@@ -43,9 +43,9 @@ if [ ! -d "frappe-bench" ]; then
       --db-host "$DB_HOST" \
       --db-port "${DB_PORT:-5432}" \
       --db-name "${DB_NAME:-erpnext}" \
-      --db-password "$DB_ROOT_PASSWORD" \
-      --db-root-username "${DB_ROOT_USER:-postgres}" \
-      --db-root-password "$DB_ROOT_PASSWORD"
+      --db-password "${DB_PASSWORD:-$DB_ROOT_PASSWORD}" \
+      --db-root-username "${DB_USER:-$DB_ROOT_USER}" \
+      --db-root-password "${DB_PASSWORD:-$DB_ROOT_PASSWORD}"
   else
     bench new-site site.local \
       --admin-password admin \
