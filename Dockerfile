@@ -19,8 +19,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 
 RUN pip3 install frappe-bench
 
-COPY --chmod=755 entrypoint.sh /entrypoint.sh
-RUN ls -la /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && ls -la /entrypoint.sh
 
 # Expose port
 EXPOSE 8080
