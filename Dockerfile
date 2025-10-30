@@ -19,16 +19,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 
 RUN pip3 install frappe-bench
 
-COPY --chmod=755 entrypoint.sh /entrypoint.sh
-RUN ls -la /entrypoint.sh
+# Copy entrypoint and fix line endings (Windows CRLF -> Unix LF)
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh && \
+    ls -la /usr/local/bin/entrypoint.sh
 
 # Expose port
 EXPOSE 8080
 
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh && ls -la /usr/local/bin/entrypoint.sh
-
 USER frappe
 WORKDIR /home/frappe
 
-CMD ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
