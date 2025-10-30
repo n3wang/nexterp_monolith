@@ -9,7 +9,7 @@ until mysql -h"$DB_HOST" -uroot -p"$DB_ROOT_PASSWORD" -e "SELECT 1;" &>/dev/null
 done
 
 # Create frappe user if it doesn't exist
-echo "🔧 Creating MariaDB user 'frappe'..."
+echo "🔧 Creating MariaDB user 'frappe'... at $DB_HOST"
 mysql -h"$DB_HOST" -uroot -p"$DB_ROOT_PASSWORD" <<-EOSQL
     CREATE USER IF NOT EXISTS 'frappe'@'%' IDENTIFIED BY 'frappe';
     GRANT ALL PRIVILEGES ON *.* TO 'frappe'@'%' WITH GRANT OPTION;
