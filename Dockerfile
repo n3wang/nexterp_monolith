@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip python3-setuptools \
     git curl sudo redis-server \
     libmysqlclient-dev default-mysql-client \
+    postgresql-client libpq-dev \
     xvfb libfontconfig wkhtmltopdf \
     cron && \
     apt-get clean

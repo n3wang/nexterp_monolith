@@ -6,6 +6,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=${DB_HOST:-mariadb}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root}
+      - DB_TYPE=${DB_TYPE:-postgres}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-erpnext}
+      - DB_ROOT_USER=${DB_ROOT_USER:-postgres}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-postgres}
       - SITE_NAME=${SITE_NAME:-site.local}
