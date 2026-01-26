@@ -13,22 +13,22 @@ This directory contains the deployment template for ERPNext with custom apps on 
 ## Quick Start
 
 1. **Set Environment Variables in CapRover** (use values from `.env`):
-   ```env
-   DB_HOST=134.199.185.35
-   DB_PORT=5433
-   DB_NAME=postgres
-   DB_USER=directus
-   DB_PASSWORD=f19eb7c1e52c49e4
-   SITE_NAME=site.local
-   ADMIN_PASSWORD=your-admin-password
-   ERPNEXT_BRANCH=version-15
-   CUSTOM_APPS_SOURCE=local
-   CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode_2"
-   ```
+```env
+DB_HOST=134.199.185.35
+DB_PORT=5433
+DB_NAME=postgres
+DB_USER=directus
+DB_PASSWORD=f19eb7c1e52c49e4
+SITE_NAME=site.local
+ADMIN_PASSWORD=your-admin-password
+ERPNEXT_BRANCH=version-15
+CUSTOM_APPS_SOURCE=local
+CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode_2"
+```
 
 2. **Deploy**:
-   - If using Git: Push to repository, CapRover auto-deploys
-   - If using tarball: Upload in CapRover dashboard
+- If using Git: Push to repository, CapRover auto-deploys
+- If using tarball: Upload in CapRover dashboard
 
 ## Custom Apps Configuration
 
