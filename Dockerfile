@@ -1,16 +1,12 @@
 FROM ubuntu:22.04
-
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Create frappe user
-RUN useradd -ms /bin/bash frappe
-
-# System dependencies
+# ─── System packages ─────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
-    python3.11 python3.11-dev python3.11-venv \
-    python3-pip python3-setuptools \
+    python3.11 python3.11-dev python3.11-venv python3-pip python3-setuptools \
     git curl sudo \
     default-mysql-client libmysqlclient-dev \
+    redis-tools redis-server \
     xvfb libfontconfig wkhtmltopdf \
     cron && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -21,20 +17,43 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     npm install -g yarn && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# frappe-bench CLI
-RUN pip3 install frappe-bench
+# frappe user with sudo for volume ownership fixes at runtime
+RUN useradd -ms /bin/bash frappe && \
+    echo 'frappe ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# Grant sudo to frappe user (needed during bench init)
-RUN echo 'frappe ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# frappe-bench + uv (faster pip)
+RUN pip3 install frappe-bench uv
 
-# Copy entrypoint
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && \
-    chmod +x /usr/local/bin/entrypoint.sh
-
-EXPOSE 8000
-
+# ─── Bench init at IMAGE BUILD TIME — cached in Docker layer ─────────────────
+# This is the expensive step (clones frappe, runs yarn, pip-installs frappe).
+# It only re-runs when this layer or earlier layers change.
 USER frappe
 WORKDIR /home/frappe
+
+RUN bench init frappe-bench \
+    --frappe-branch version-15 \
+    --python python3.11
+
+WORKDIR /home/frappe/frappe-bench
+
+# Remove local redis entries from Procfile — we use the external Redis service
+RUN sed -i '/redis/Id' Procfile 2>/dev/null || true
+
+# ─── Pre-install custom ERPNext app ──────────────────────────────────────────
+ARG ERPNEXT_REPO=https://github.com/quanteonlab/erp15.git
+ARG ERPNEXT_BRANCH=main
+
+# Cache-bust only when the remote HEAD changes
+ADD https://api.github.com/repos/quanteonlab/erp15/git/refs/heads/${ERPNEXT_BRANCH} /tmp/erp15_head.json
+
+RUN bench get-app erpnext ${ERPNEXT_REPO} --branch ${ERPNEXT_BRANCH}
+
+# Build JS/CSS assets (cached here — not rebuilt on every container start)
+RUN bench build
+
+COPY --chown=frappe:frappe entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 8000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
