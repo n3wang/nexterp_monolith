@@ -30,6 +30,20 @@ CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode
 - If using Git: Push to repository, CapRover auto-deploys
 - If using tarball: Upload in CapRover dashboard
 
+## Database Export
+
+Generate a reusable schema dump plus data upserts from the running MariaDB container:
+
+```bash
+chmod +x export-mariadb-upsert.sh
+./export-mariadb-upsert.sh
+```
+
+Output files are written to `exports/`:
+
+- `*_schema_*.sql` contains schema, routines, triggers, and events.
+- `*_upsert_*.sql` contains `INSERT ... ON DUPLICATE KEY UPDATE ...` statements for each table.
+
 ## Custom Apps Configuration
 
 ### Method 1: Local Apps (Recommended)
