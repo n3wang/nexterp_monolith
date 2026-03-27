@@ -1,20 +1,152 @@
 #!/bin/bash
-# Complete Server Setup Script
-# This script sets up a fresh Ubuntu/Debian server for ERPNext deployment on CapRover
-# It installs Docker, CapRover, and performs basic system configuration
+# Server Setup Script
+# Prepares a fresh Ubuntu/Debian server to run the Docker Compose stack.
+# Installs Docker, opens required ports, and applies system optimizations.
 
 set -e
 
-echo "🖥️  ERPNext CapRover Server Setup"
-echo "=================================="
+echo "ERPNext Docker Server Setup"
+echo "============================"
 echo ""
 echo "This script will:"
 echo "  1. Update system packages"
 echo "  2. Install Docker and Docker Compose"
-echo "  3. Install CapRover"
-echo "  4. Configure firewall (if ufw is installed)"
-echo "  5. Set up basic system optimizations"
+echo "  3. Configure firewall (ports 80, 443, 8000, 3000)"
+echo "  4. Apply system optimizations for ERPNext"
 echo ""
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "ERROR: Please run as root (use sudo)"
+    exit 1
+fi
+
+# Detect OS
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+    VER=$VERSION_ID
+    echo "Detected OS: $OS $VER"
+else
+    echo "ERROR: Cannot detect OS"
+    exit 1
+fi
+
+read -p "Continue with setup? (y/N): " CONFIRM
+if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
+    echo "Setup cancelled"
+    exit 1
+fi
+
+# ─── Step 1: System update ────────────────────────────────────────────────
+echo ""
+echo "Step 1/4: Updating system packages"
+apt-get update
+apt-get upgrade -y
+apt-get install -y curl wget git vim htop ufw unattended-upgrades
+echo "System updated."
+
+# ─── Step 2: Install Docker ────────────────────────────────────────────────
+echo ""
+echo "Step 2/4: Installing Docker"
+
+if command -v docker &>/dev/null; then
+    echo "Docker is already installed."
+    docker --version
+else
+    apt-get install -y \
+        apt-transport-https ca-certificates gnupg lsb-release software-properties-common
+
+    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    apt-get update
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    systemctl start docker
+    systemctl enable docker
+
+    # Standalone docker-compose (for scripts that use it directly)
+    DC_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+    curl -L "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+
+    if [ -n "$SUDO_USER" ]; then
+        usermod -aG docker "$SUDO_USER"
+    fi
+fi
+
+echo "Docker installed."
+docker --version
+docker-compose --version 2>/dev/null || docker compose version
+
+# ─── Step 3: Firewall ───────────────────────────────────────────────────────────────
+echo ""
+echo "Step 3/4: Configuring firewall"
+
+if command -v ufw &>/dev/null; then
+    ufw allow 22/tcp    # SSH
+    ufw allow 80/tcp    # HTTP
+    ufw allow 443/tcp   # HTTPS
+    ufw allow 8000/tcp  # ERPNext backend
+    ufw allow 3000/tcp  # React frontend
+
+    echo "WARNING: Firewall will be enabled. Ensure SSH (port 22) is allowed."
+    read -p "Enable firewall? (y/N): " ENABLE_FW
+    if [ "$ENABLE_FW" = "y" ] || [ "$ENABLE_FW" = "Y" ]; then
+        ufw --force enable
+        echo "Firewall enabled."
+    else
+        echo "Firewall not enabled. Run: ufw enable"
+    fi
+else
+    echo "UFW not available, skipping firewall."
+fi
+
+# ─── Step 4: System optimizations ────────────────────────────────────────────────
+echo ""
+echo "Step 4/4: System optimizations"
+
+if ! grep -q "fs.file-max" /etc/sysctl.conf; then
+    cat >> /etc/sysctl.conf <<-EOF
+
+# ERPNext Docker optimizations
+fs.file-max = 2097152
+vm.max_map_count = 262144
+net.core.somaxconn = 65535
+EOF
+    sysctl -p
+    echo "System limits increased."
+else
+    echo "System limits already configured."
+fi
+
+# ─── Summary ───────────────────────────────────────────────────────────────────────────
+echo ""
+echo "============================"
+echo "Server setup complete."
+echo "============================"
+echo ""
+echo "Next steps:"
+echo "  1. Copy nexterp_monolith/ to this server (e.g. via scp or git clone)"
+echo "  2. Edit .env with your passwords and domain"
+echo "  3. Run: docker compose up -d --build"
+echo "  4. React app: http://<server-ip>:3000"
+echo "  5. ERPNext API: http://<server-ip>:8000"
+echo ""
+if [ -n "$SUDO_USER" ]; then
+    echo "NOTE: $SUDO_USER was added to the docker group."
+    echo "Log out and back in for it to take effect."
+fi
+
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 

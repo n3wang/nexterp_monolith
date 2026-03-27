@@ -1,27 +1,76 @@
-version: "3"
+version: "3.9"
 
 services:
+
+  # ─── Infrastructure ──────────────────────────────────────────────────────────
+
   mariadb:
     image: mariadb:10.6
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-erpnext}
+      MYSQL_USER: ${DB_USER:-frappe}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-frappe123}
     volumes:
       - mariadb_data:/var/lib/mysql
+      - ./50-server.cnf:/etc/mysql/mariadb.conf.d/50-server.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── ERPNext Backend ─────────────────────────────────────────────────────────
 
   erpnext:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
-      - "8000:8000"
+      - "${ERPNEXT_PORT:-8000}:8000"
+    env_file:
+      - .env
     environment:
       DB_HOST: mariadb
-      DB_ROOT_PASSWORD: root
-      SITE_NAME: site.local
+      REDIS_URL: redis://redis:6379
     volumes:
-      - frappe_data:/home/frappe
+      - frappe_data:/home/frappe/frappe-bench/sites
+
+  # ─── React Frontend ───────────────────────────────────────────────────────────
+
+  react:
+    build:
+      context: .
+      dockerfile: Dockerfile.react
+    restart: unless-stopped
+    depends_on:
+      - erpnext
+    ports:
+      - "${REACT_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NEXT_PUBLIC_FRAPPE_URL: http://erpnext:8000
 
 volumes:
   mariadb_data:
+  redis_data:
   frappe_data:

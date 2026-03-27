@@ -1,0 +1,37 @@
+# React ecommerce frontend
+# Always pulls the latest commit from: https://github.com/n3wang/erpnext-ecommerce
+
+FROM node:18-alpine AS builder
+
+ARG REACT_REPO=https://github.com/n3wang/erpnext-ecommerce.git
+ARG REACT_BRANCH=main
+
+# Clone latest source every build (no cache for this layer)
+ADD https://api.github.com/repos/n3wang/erpnext-ecommerce/commits/${REACT_BRANCH}?per_page=1 /tmp/latest_commit.json
+RUN apk add --no-cache git && \
+    git clone --depth 1 --branch ${REACT_BRANCH} ${REACT_REPO} /app
+
+WORKDIR /app
+
+# Build args become env vars for Next.js build
+ARG NEXT_PUBLIC_FRAPPE_URL=http://erpnext:8000
+ENV NEXT_PUBLIC_FRAPPE_URL=${NEXT_PUBLIC_FRAPPE_URL}
+
+RUN npm install && npm run build
+
+# Production image
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+
+ENV PORT=3000
+
+CMD ["node", "server.js"]
