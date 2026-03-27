@@ -19,6 +19,16 @@ MARIADB_SERVICE="${MARIADB_SERVICE:-mariadb}"
 SCHEMA_FILE="${EXPORT_DIR}/${DB_NAME}_schema_${TIMESTAMP}.sql"
 UPSERT_FILE="${EXPORT_DIR}/${DB_NAME}_upsert_${TIMESTAMP}.sql"
 MAX_WAIT_SECONDS="${MAX_WAIT_SECONDS:-60}"
+SOURCE_MODE="${SOURCE_MODE:-docker}"
+
+BENCH_ROOT="${BENCH_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+BENCH_SITE="${BENCH_SITE:-dev_site_a}"
+SITE_CONFIG_FILE="${BENCH_ROOT}/sites/${BENCH_SITE}/site_config.json"
+
+MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
+MYSQL_PORT="${MYSQL_PORT:-3306}"
+MYSQL_USER="${MYSQL_USER:-}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
 
 mkdir -p "$EXPORT_DIR"
 
@@ -26,38 +36,81 @@ compose() {
     docker compose -f "$COMPOSE_FILE" "$@"
 }
 
-mysql_exec() {
-    compose exec -T "$MARIADB_SERVICE" mysql -uroot -p"$DB_ROOT_PASSWORD" --batch --skip-column-names "$@"
-}
-
-mysqldump_exec() {
-    compose exec -T "$MARIADB_SERVICE" mysqldump -uroot -p"$DB_ROOT_PASSWORD" "$@"
-}
-
 die() {
     echo "ERROR: $*" >&2
     exit 1
 }
 
-command -v docker >/dev/null 2>&1 || die "docker is not installed or not in PATH"
+json_get() {
+    local key="$1"
+    local file="$2"
+    sed -n "s/^[[:space:]]*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$file" | head -n 1
+}
 
-[ -n "$DB_ROOT_PASSWORD" ] || die "DB_ROOT_PASSWORD is empty. Set it in .env before running this export."
-
-echo "Checking MariaDB container availability..."
-compose ps "$MARIADB_SERVICE" >/dev/null
-
-SERVICE_STATE="$(compose ps --status running --services 2>/dev/null | grep -Fx "$MARIADB_SERVICE" || true)"
-[ -n "$SERVICE_STATE" ] || die "service '$MARIADB_SERVICE' is not running. Start it with: docker compose up -d $MARIADB_SERVICE"
-
-echo "Waiting for MariaDB to accept connections..."
-START_TIME="$(date +%s)"
-until mysql_exec -e "SELECT 1" >/dev/null 2>&1; do
-    NOW="$(date +%s)"
-    if [ $((NOW - START_TIME)) -ge "$MAX_WAIT_SECONDS" ]; then
-        die "MariaDB did not become ready within ${MAX_WAIT_SECONDS}s. Check: docker compose logs $MARIADB_SERVICE"
+mysql_exec() {
+    if [ "$SOURCE_MODE" = "docker" ]; then
+        compose exec -T "$MARIADB_SERVICE" mysql -uroot -p"$DB_ROOT_PASSWORD" --batch --skip-column-names "$@"
+    else
+        mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --batch --skip-column-names "$@"
     fi
-    sleep 2
-done
+}
+
+mysqldump_exec() {
+    if [ "$SOURCE_MODE" = "docker" ]; then
+        compose exec -T "$MARIADB_SERVICE" mysqldump -uroot -p"$DB_ROOT_PASSWORD" "$@"
+    else
+        mysqldump -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$@"
+    fi
+}
+
+if [ "$SOURCE_MODE" = "docker" ]; then
+    command -v docker >/dev/null 2>&1 || die "docker is not installed or not in PATH"
+
+    [ -n "$DB_ROOT_PASSWORD" ] || die "DB_ROOT_PASSWORD is empty. Set it in .env before running this export."
+
+    echo "Checking MariaDB container availability..."
+    compose ps "$MARIADB_SERVICE" >/dev/null
+
+    SERVICE_STATE="$(compose ps --status running --services 2>/dev/null | grep -Fx "$MARIADB_SERVICE" || true)"
+    [ -n "$SERVICE_STATE" ] || die "service '$MARIADB_SERVICE' is not running. Start it with: docker compose up -d $MARIADB_SERVICE"
+
+    echo "Waiting for MariaDB to accept connections..."
+    START_TIME="$(date +%s)"
+    until mysql_exec -e "SELECT 1" >/dev/null 2>&1; do
+        NOW="$(date +%s)"
+        if [ $((NOW - START_TIME)) -ge "$MAX_WAIT_SECONDS" ]; then
+            die "MariaDB did not become ready within ${MAX_WAIT_SECONDS}s. Check: docker compose logs $MARIADB_SERVICE"
+        fi
+        sleep 2
+    done
+else
+    command -v mysql >/dev/null 2>&1 || die "mysql client is not installed"
+    command -v mysqldump >/dev/null 2>&1 || die "mysqldump is not installed"
+
+    [ -f "$SITE_CONFIG_FILE" ] || die "site config not found: $SITE_CONFIG_FILE"
+
+    DB_NAME="$(json_get db_name "$SITE_CONFIG_FILE")"
+    DB_PASSWORD="$(json_get db_password "$SITE_CONFIG_FILE")"
+    [ -n "$DB_NAME" ] || die "db_name missing in $SITE_CONFIG_FILE"
+    [ -n "$DB_PASSWORD" ] || die "db_password missing in $SITE_CONFIG_FILE"
+
+    MYSQL_USER="${MYSQL_USER:-$DB_NAME}"
+    MYSQL_PASSWORD="${MYSQL_PASSWORD:-$DB_PASSWORD}"
+    SCHEMA_FILE="${EXPORT_DIR}/${DB_NAME}_schema_${TIMESTAMP}.sql"
+    UPSERT_FILE="${EXPORT_DIR}/${DB_NAME}_upsert_${TIMESTAMP}.sql"
+
+    echo "Using bench site source: ${BENCH_SITE}"
+    echo "Source database: ${DB_NAME} @ ${MYSQL_HOST}:${MYSQL_PORT}"
+
+    START_TIME="$(date +%s)"
+    until mysql_exec -e "SELECT 1" >/dev/null 2>&1; do
+        NOW="$(date +%s)"
+        if [ $((NOW - START_TIME)) -ge "$MAX_WAIT_SECONDS" ]; then
+            die "Cannot connect to source MariaDB at ${MYSQL_HOST}:${MYSQL_PORT} as ${MYSQL_USER}"
+        fi
+        sleep 2
+    done
+fi
 
 echo "Exporting schema to ${SCHEMA_FILE}"
 mysqldump_exec \
@@ -88,13 +141,13 @@ else
     while IFS= read -r table_name; do
         [ -z "$table_name" ] && continue
 
-        column_list="$(mysql_exec -e "SELECT GROUP_CONCAT(CONCAT('`', column_name, '`') ORDER BY ordinal_position SEPARATOR ', ') FROM information_schema.columns WHERE table_schema = '${DB_NAME}' AND table_name = '${table_name}'")"
+        column_list="$(mysql_exec -e "SELECT GROUP_CONCAT(CONCAT(CHAR(96), column_name, CHAR(96)) ORDER BY ordinal_position SEPARATOR ', ') FROM information_schema.columns WHERE table_schema = '${DB_NAME}' AND table_name = '${table_name}'")"
 
         if [ -z "$column_list" ]; then
             continue
         fi
 
-        update_list="$(mysql_exec -e "SELECT GROUP_CONCAT(CONCAT('`', column_name, '` = VALUES(`', column_name, '`)') ORDER BY ordinal_position SEPARATOR ', ') FROM information_schema.columns WHERE table_schema = '${DB_NAME}' AND table_name = '${table_name}'")"
+        update_list="$(mysql_exec -e "SELECT GROUP_CONCAT(CONCAT(CHAR(96), column_name, CHAR(96), ' = VALUES(', CHAR(96), column_name, CHAR(96), ')') ORDER BY ordinal_position SEPARATOR ', ') FROM information_schema.columns WHERE table_schema = '${DB_NAME}' AND table_name = '${table_name}'")"
 
         if [ -z "$update_list" ]; then
             continue
