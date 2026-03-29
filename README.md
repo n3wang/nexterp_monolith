@@ -23,7 +23,7 @@ SITE_NAME=site.local
 ADMIN_PASSWORD=your-admin-password
 ERPNEXT_BRANCH=version-15
 CUSTOM_APPS_SOURCE=local
-CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode_2"
+CUSTOM_APPS_LOCAL="ecommerce_integrations payments webshop"
 ```
 
 2. **Deploy**:
@@ -52,7 +52,7 @@ Apps are included in your repository's `apps/` directory:
 
 ```env
 CUSTOM_APPS_SOURCE=local
-CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode_2"
+CUSTOM_APPS_LOCAL="ecommerce_integrations payments webshop"
 ```
 
 **To Update**:
@@ -199,7 +199,7 @@ If this is a **new app**, add it to CapRover:
 3. Go to **App Configs** tab
 4. Update `CUSTOM_APPS_LOCAL` environment variable:
    ```env
-   CUSTOM_APPS_LOCAL="ecommerce_integrations rentals payments webshop airplane_mode_2 my_custom_app"
+   CUSTOM_APPS_LOCAL="ecommerce_integrations payments webshop my_custom_app"
    ```
 5. Click **Save & Update**
 
