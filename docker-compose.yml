@@ -66,6 +66,8 @@ services:
     restart: unless-stopped
     environment:
       ERPNEXT_URL: http://erpnext:8000
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
     depends_on:
       - erpnext
     networks:
