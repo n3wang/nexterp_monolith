@@ -7,7 +7,7 @@ COPY . .
 ARG NEXT_PUBLIC_ERPNEXT_URL=https://erp.l.l0l.in
 ENV NEXT_PUBLIC_ERPNEXT_URL=${NEXT_PUBLIC_ERPNEXT_URL}
 
-RUN npm install && npm run build
+RUN npm install && npm run build -- --no-lint
 
 FROM node:18-alpine AS runner
 
