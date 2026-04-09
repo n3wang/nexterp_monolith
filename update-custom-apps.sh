@@ -19,6 +19,9 @@ docker compose -f "$COMPOSE_FILE" exec erpnext bash -c "
     git reset --hard origin/\${ERPNEXT_BRANCH:-main}
     cd ../..
 
+    # Reinstall Python dependencies declared by the ERPNext app.
+    ./env/bin/pip install -e apps/erpnext
+
     # Run migrations
     bench --site ${SITE_NAME} migrate
 

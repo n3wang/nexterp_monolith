@@ -125,6 +125,7 @@ if bench --site "$SITE_NAME" list-apps 2>/dev/null | grep -q erpnext; then
     echo "ERPNext already installed — pulling latest + migrating..."
     git -C apps/erpnext fetch "$ERPNEXT_REPO" "$ERPNEXT_BRANCH" 2>/dev/null || true
     git -C apps/erpnext reset --hard FETCH_HEAD 2>/dev/null || true
+    /home/frappe/frappe-bench/env/bin/pip install -e apps/erpnext -q
     bench --site "$SITE_NAME" migrate
 else
     echo "Installing ERPNext..."
