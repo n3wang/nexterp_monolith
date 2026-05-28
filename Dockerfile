@@ -47,7 +47,9 @@ ARG ERPNEXT_BRANCH=main
 ADD https://api.github.com/repos/quanteonlab/erp15/git/refs/heads/${ERPNEXT_BRANCH} /tmp/erp15_head.json
 
 RUN bench get-app erpnext ${ERPNEXT_REPO} --branch ${ERPNEXT_BRANCH}
+RUN bench get-app payments https://github.com/frappe/payments.git --branch version-15
 RUN bench get-app ecommerce_integrations https://github.com/frappe/ecommerce_integrations.git --branch develop
+RUN bench get-app webshop https://github.com/frappe/webshop.git --branch version-15
 
 # Build JS/CSS assets (cached here — not rebuilt on every container start)
 RUN bench build

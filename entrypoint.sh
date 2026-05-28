@@ -102,19 +102,21 @@ PYEOF
     /home/frappe/frappe-bench/env/bin/pip install -e "apps/${app}" -q
 }
 
-if [ ! -d "apps/ecommerce_integrations" ]; then
-    echo "ecommerce_integrations app missing - installing..."
+if ! /home/frappe/frappe-bench/env/bin/python -c "import ecommerce_integrations" 2>/dev/null; then
+    echo "ecommerce_integrations not importable - installing..."
     bench get-app ecommerce_integrations https://github.com/frappe/ecommerce_integrations.git --branch develop
 fi
 
-if [ ! -d "apps/payments" ]; then
-    echo "payments app missing - installing..."
-    bench get-app payments https://github.com/frappe/payments.git --branch develop
+if ! /home/frappe/frappe-bench/env/bin/python -c "import payments" 2>/dev/null; then
+    echo "payments not importable - installing..."
+    rm -rf apps/payments
+    bench get-app payments https://github.com/frappe/payments.git --branch version-15
 fi
 
-if [ ! -d "apps/webshop" ]; then
-    echo "webshop app missing - installing..."
-    bench get-app webshop https://github.com/frappe/webshop.git --branch develop
+if ! /home/frappe/frappe-bench/env/bin/python -c "import webshop" 2>/dev/null; then
+    echo "webshop not importable - installing..."
+    rm -rf apps/webshop
+    bench get-app webshop https://github.com/frappe/webshop.git --branch version-15
 fi
 
 ensure_shim_app "airplane_mode_2"
