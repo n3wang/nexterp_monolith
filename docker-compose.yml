@@ -55,9 +55,12 @@ services:
       - internal
       - web
 
-  # ─── React Frontend ───────────────────────────────────────────────────────────
+  # ─── React Frontend (blue/green slots) ──────────────────────────────────────
+  # Only one slot is active at a time; Caddy routes to the active slot.
+  # State is tracked in /var/lib/deploy/active-slot (blue|green).
+  # Use scripts/deploy-bg.sh to deploy — do not run 'docker compose up react-blue/green' manually.
 
-  react:
+  react-blue:
     build:
       context: /root/code/frappe-bench-custom-test/erpnext-ecommerce
       dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
@@ -68,8 +71,21 @@ services:
       ERPNEXT_URL: http://erpnext:8000
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
       ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
-    depends_on:
-      - erpnext
+    networks:
+      - internal
+      - web
+
+  react-green:
+    build:
+      context: /root/code/frappe-bench-custom-test/erpnext-ecommerce
+      dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
+      args:
+        NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
+    restart: unless-stopped
+    environment:
+      ERPNEXT_URL: http://erpnext:8000
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
     networks:
       - internal
       - web
