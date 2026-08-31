@@ -49,6 +49,11 @@ services:
     environment:
       DB_HOST: mariadb
       REDIS_URL: redis://redis:6379
+      ERPNEXT_SMTP_EMAIL: ${ERPNEXT_SMTP_EMAIL:-help@l0l.in}
+      ERPNEXT_SMTP_PASSWORD: ${ERPNEXT_SMTP_PASSWORD:-}
+      ERPNEXT_SMTP_SERVER: ${ERPNEXT_SMTP_SERVER:-smtp.hostinger.com}
+      ERPNEXT_SMTP_PORT: ${ERPNEXT_SMTP_PORT:-465}
+      ERPNEXT_SMTP_USE_SSL: ${ERPNEXT_SMTP_USE_SSL:-1}
     volumes:
       - frappe_data:/home/frappe/frappe-bench/sites
     networks:
