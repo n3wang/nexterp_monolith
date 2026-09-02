@@ -71,6 +71,7 @@ services:
       dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
       args:
         NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
+        ERPNEXT_URL: http://erpnext:8000
     restart: unless-stopped
     environment:
       ERPNEXT_URL: http://erpnext:8000
@@ -86,6 +87,7 @@ services:
       dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
       args:
         NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
+        ERPNEXT_URL: http://erpnext:8000
     restart: unless-stopped
     environment:
       ERPNEXT_URL: http://erpnext:8000
@@ -101,6 +103,7 @@ services:
       dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
       args:
         NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
+        ERPNEXT_URL: http://erpnext:8000
     restart: unless-stopped
     environment:
       ERPNEXT_URL: http://erpnext:8000

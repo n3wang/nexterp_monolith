@@ -7,6 +7,12 @@ COPY . .
 ARG NEXT_PUBLIC_ERPNEXT_URL=https://erp.l.l0l.in
 ENV NEXT_PUBLIC_ERPNEXT_URL=${NEXT_PUBLIC_ERPNEXT_URL}
 
+# Used by next.config.mjs rewrites for /files and /private/files.
+# Must be the Docker-network URL (not localhost) — rewrites are baked at build time.
+# Overrides any ERPNEXT_URL from the build-context .env (laptop port).
+ARG ERPNEXT_URL=http://erpnext:8000
+ENV ERPNEXT_URL=${ERPNEXT_URL}
+
 RUN npm install && npm run build -- --no-lint
 
 FROM node:18-alpine AS runner
