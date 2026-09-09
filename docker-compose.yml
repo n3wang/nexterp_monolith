@@ -60,6 +60,43 @@ services:
       - internal
       - web
 
+  # ─── ERPNext Dev/Test (on-demand, erp.test / localhost:1271) ────────────────
+  # Not started by `docker compose up` or the deploy scripts (profiles: [dev]).
+  # Bind-mounts apps/erpnext live from the host checkout — edit and refresh,
+  # no image build needed. Own site ("dev.local") + own DB name on the same
+  # shared MariaDB, and its own Redis logical DB — isolated from production
+  # data/queues while still reusing the same mariadb/redis processes.
+  #   Start:  docker compose --profile dev up -d erpnext-dev
+  #   Stop:   docker compose --profile dev stop erpnext-dev
+  #   Logs:   docker compose logs -f erpnext-dev
+
+  erpnext-dev:
+    image: nexterp_monolith-erpnext   # reuse the already-built prod image
+    profiles: ["dev"]
+    restart: "no"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mariadb
+      DB_NAME: erpnext_dev
+      SITE_NAME: dev.local
+      REDIS_URL: redis://redis:6379/1
+    entrypoint: ["/usr/local/bin/entrypoint-dev.sh"]
+    volumes:
+      - frappe_data_dev:/home/frappe/frappe-bench/sites
+      - ../apps/erpnext:/home/frappe/frappe-bench/apps/erpnext
+      - ./entrypoint-dev.sh:/usr/local/bin/entrypoint-dev.sh:ro
+    ports:
+      - "1271:8000"
+    networks:
+      - internal
+      - web
+
   # ─── React Frontend (blue/green slots) ──────────────────────────────────────
   # Only one slot is active at a time; Caddy routes to the active slot.
   # State is tracked in /var/lib/deploy/active-slot (blue|green).
@@ -119,6 +156,7 @@ volumes:
   mariadb_data:
   redis_data:
   frappe_data:
+  frappe_data_dev:
 
 networks:
   internal:             # private network for DB/Redis — not exposed to Caddy
