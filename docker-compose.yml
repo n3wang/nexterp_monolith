@@ -8,6 +8,10 @@ services:
     environment:
       # Only set root password — bench new-site handles all database/user creation
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      # localhost-only — erpnext reaches mariadb over the internal Docker network;
+      # this is for host-side manual access only (e.g. via SSH tunnel). Never bind 0.0.0.0 here.
+      - "127.0.0.1:3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./50-server.cnf:/etc/mysql/mariadb.conf.d/50-server.cnf:ro
