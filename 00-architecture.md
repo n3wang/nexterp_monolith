@@ -1,102 +1,77 @@
-
 # Architecture Overview
 
 ## Components
 
+### 1. React Frontend (ecommerce / POS storefront)
 
+**Repo:** `erpnext-ecommerce` (this monorepo)
 
+- Deployed as Docker (`react-blue` / `react-green` blue-green).
+- Public host today: `shop.l.l0l.in` (Caddy → active React slot).
+- Server-side proxies (`/api/pm/*`, etc.) call ERPNext at `ERPNEXT_URL` (Docker: `http://erpnext:8000`).
+- Browser does not call MariaDB; only HTTPS to shop (and optionally erp desk).
 
-### 1. React Frontend (ecommerce storefront)
-**Repo:** https://github.com/n3wang/erpnext-ecommerce.git
+### 2. Frappe Bench / ERPNext
 
-- Deploy separately as a Node.js app (e.g. via CapRover, Vercel, or `pm2`).
-- Installed at the server root or a subdomain: `shop.yourdomain.com`
-- Connects to: the Frappe/ERPNext backend via the ERPNext REST API and Webshop endpoints.
-- Set `NEXT_PUBLIC_FRAPPE_URL=https://erp.yourdomain.com` in its `.env`.
+**Repo:** `apps/erpnext` inside the bench; image built from `nexterp_monolith/`.
 
----
+- Process: gunicorn + workers in the `erpnext` container.
+- Sites live on volume `frappe_data` → `/home/frappe/frappe-bench/sites`.
+- Public host today: `erp.l.l0l.in`.
 
-### 2. Frappe Bench (server runtime + bench config)
-**Repo:** https://github.com/n3wang/frappe-bench-custom-test.git
+### 3. Shared data plane
 
-- Cloned on the server at `~/frappe-bench-custom-test/`.
-- This is the bench environment: it contains `apps/`, `sites/`, `config/`, `env/`.
-- Does NOT include app source code directly (apps are git submodules or separate clones under `apps/`).
-- The bench manages the Frappe/ERPNext process workers, Redis, MariaDB connections, and site configs.
-- Run with `bench start` (dev) or `bench setup production` (prod via nginx + supervisor).
+| Service | Role |
+|---------|------|
+| **MariaDB 10.6** | One server; **one database per Frappe site** |
+| **Redis** | Cache + queues (logical DB index can isolate dev) |
+| **Caddy** | TLS + host routing (`/root/docker/caddy/Caddyfile`) |
 
----
-
-### 3. ERPNext Custom App (backend business logic)
-**Repo:** https://github.com/quanteonlab/erp15.git
-
-- Cloned into `apps/erpnext/` inside the bench:
-  ```
-  cd ~/frappe-bench-custom-test/apps/erpnext
-  git remote -v   # should point to quanteonlab/erp15
-  ```
-- This is the actual ERPNext application code (Python/JS), customized for this project.
-- Installed into a site with:
-  ```
-  bench --site dev_site_a install-app erpnext
-  ```
-- Connects to: MariaDB (via bench site config), Redis (queue/cache), and exposes REST API consumed by the React frontend.
+Dev profile already mirrors multi-DB on one MariaDB: `erpnext-dev` → `SITE_NAME=dev.local`, `DB_NAME=erpnext_dev`.
 
 ---
 
-## Connection Map
+## Connection map (current single-tenant)
 
-```
-React App (shop.yourdomain.com)
-    |
-    | HTTP REST / Webshop API
-    v
-Frappe Bench  (erp.yourdomain.com)
-    |-- nginx (routes to gunicorn)
-    |-- frappe workers (Python)
-    |-- ERPNext app  <-- source: quanteonlab/erp15
-    |-- MariaDB (site database)
-    |-- Redis   (cache + queue)
-```
-
-
-```
-ssh-keygen -t ed25519 -C "wangnelson2@gmail.com"
-
+```text
+Browser
+  │
+  ├─ https://shop.l.l0l.in  →  Caddy  →  react-blue|green:3000
+  │                                      │
+  │                                      └─ http://erpnext:8000  (ERPNEXT_URL)
+  │
+  └─ https://erp.l.l0l.in   →  Caddy  →  erpnext:8000
+                                              │
+                              MariaDB ◄───────┘   Redis
 ```
 
+---
 
-```
-cd apps/erpnext
-```
+## Multi-tenant direction (cheap / shared hypervisor)
 
-```
-newang@DESKTOP-KLQB96D:~/frappe-bench-custom-test/apps$ cd erpnext/
-newang@DESKTOP-KLQB96D:~/frappe-bench-custom-test/apps/erpnext$ git origin -v
-git: 'origin' is not a git command. See 'git --help'.
-newang@DESKTOP-KLQB96D:~/frappe-bench-custom-test/apps/erpnext$ git remote -v
-origin  https://github.com/quanteonlab/erp15.git (fetch)
-origin  https://github.com/quanteonlab/erp15.git (push)
-```
+**Plan:** [`local_docs/proposals/i037_multi_tenant_subdomain_shared_mariadb.md`](../local_docs/proposals/i037_multi_tenant_subdomain_shared_mariadb.md)
 
+- Hosts: `a.shop.l.l0l.in`, `b.shop.l.l0l.in` (wildcard DNS + Caddy).
+- Same MariaDB **instance**, different **databases** (native Frappe sites).
+- Same ERPNext + React containers; provision tenant = `bench new-site` + seed, not a new VPS.
 
-(env) newang@DESKTOP-KLQB96D:~/frappe-bench-custom-test$ cat /home/newang/.ssh/id_ed25519
-```
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCsPQ8lsQ
-KX5NrgH7xy8Q5CAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAINQbPZ+nxZJYSafw
-6kq8lBL1nW6oHEj91vZpONHY7Mq2AAAAoC0WYrRRlftkKI4Sp/ntO0Q1YDFY7lGJgZYkNc
-wulBGXwEfOvi6dbv8rilW5v/wsFf2s24XNTQxfmg/CJ25S9ienSk8hk2+E/BRTIW/mCb6w
-zUulWvOIyKOiliGogRnu00cm/xWNMQr4IAUh3rNDIeFbbIC7TPgsS8TdISFUhmKTWVYp7f
-OtYfnQ7KSaFEdvNjxxWivJrlmNQaGCaeMF6Ow=
------END OPENSSH PRIVATE KEY-----
+Orthogonal: in-app **multi-company** (several CUIT inside one site) ≠ multi-tenant isolation.
+
+---
+
+## Deploy
+
+```bash
+make deploy-bg          # blue/green React + rolling erpnext
+# After DocType changes:
+docker compose -f nexterp_monolith/docker-compose.yml exec erpnext \
+  bench --site site.local migrate
 ```
 
+See root `CLAUDE.md` / `README.md` for day-to-day commands.
 
-(env) newang@DESKTOP-KLQB96D:~/frappe-bench-custom-test$ cat ~/.ssh/id_ed25519.pub
+---
 
-```
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINQbPZ+nxZJYSafw6kq8lBL1nW6oHEj91vZpONHY7Mq2 wangnelson2@gmail.com
-```
+## Note on secrets
 
-
+Do **not** store SSH private keys, DB passwords, or API secrets in this file. Use env files / a secrets manager on the host only.
