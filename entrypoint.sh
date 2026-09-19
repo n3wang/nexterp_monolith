@@ -70,6 +70,18 @@ fi
 
 bench use "$SITE_NAME"
 
+# Host-based multi-site: do not lock `bench serve` to default_site.
+# With default_site set, frappe.app._site is fixed and every Host hits one DB.
+python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path("sites/common_site_config.json")
+cfg = json.loads(p.read_text()) if p.exists() else {}
+if cfg.pop("default_site", None) is not None:
+    p.write_text(json.dumps(cfg, indent=1) + "\n")
+    print("Cleared default_site so Host header selects the site/DB.")
+PY
+
 # Ensure apps required by installed sites are importable before migrate.
 ensure_shim_app() {
     local app="$1"

@@ -61,8 +61,14 @@ services:
     volumes:
       - frappe_data:/home/frappe/frappe-bench/sites
     networks:
-      - internal
-      - web
+      internal:
+        aliases:
+          - meilu.local
+          - bin.local
+      web:
+        aliases:
+          - meilu.local
+          - bin.local
 
   # ─── ERPNext Dev/Test (on-demand, erp.test / localhost:1271) ────────────────
   # Not started by `docker compose up` or the deploy scripts (profiles: [dev]).
@@ -143,13 +149,33 @@ services:
       context: /root/code/frappe-bench-custom-test/erpnext-ecommerce-meilu
       dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
       args:
-        NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
-        ERPNEXT_URL: http://erpnext:8000
+        NEXT_PUBLIC_ERPNEXT_URL: https://meilu.erp.l.l0l.in
+        ERPNEXT_URL: http://meilu.local:8000
     restart: unless-stopped
+    # API keys MUST come from .env.meilu only — do not fall back to site.local keys
+    env_file:
+      - .env.meilu
     environment:
-      ERPNEXT_URL: http://erpnext:8000
-      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
-      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
+      ERPNEXT_URL: http://meilu.local:8000
+    depends_on:
+      - erpnext
+    networks:
+      - internal
+      - web
+
+  react-bin:
+    build:
+      context: /root/code/frappe-bench-custom-test/erpnext-ecommerce-bin
+      dockerfile: /root/docker/nexterp_monolith/Dockerfile.react
+      args:
+        NEXT_PUBLIC_ERPNEXT_URL: https://bin.erp.l.l0l.in
+        ERPNEXT_URL: http://bin.local:8000
+    restart: unless-stopped
+    # API keys MUST come from .env.bin only — do not fall back to site.local keys
+    env_file:
+      - .env.bin
+    environment:
+      ERPNEXT_URL: http://bin.local:8000
     depends_on:
       - erpnext
     networks:

@@ -1,1 +1,5 @@
 exports/*.sql
+
+.env.meilu
+.env.bin
+credentials-*.json
