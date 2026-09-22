@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY . .
@@ -15,7 +15,7 @@ ENV ERPNEXT_URL=${ERPNEXT_URL}
 
 RUN npm install && npm run build -- --no-lint
 
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
