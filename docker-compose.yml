@@ -122,6 +122,9 @@ services:
         NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
         ERPNEXT_URL: http://erpnext:8000
     restart: unless-stopped
+    env_file:
+      - .env
+      - tenant-api-keys.env
     environment:
       ERPNEXT_URL: http://erpnext:8000
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
@@ -138,6 +141,9 @@ services:
         NEXT_PUBLIC_ERPNEXT_URL: https://erp.l.l0l.in
         ERPNEXT_URL: http://erpnext:8000
     restart: unless-stopped
+    env_file:
+      - .env
+      - tenant-api-keys.env
     environment:
       ERPNEXT_URL: http://erpnext:8000
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
@@ -146,7 +152,13 @@ services:
       - internal
       - web
 
+  # ─── Optional TRUE UI forks (not used for meilu/bin — they share blue/green) ─
+  # Enable only when a client needs a divergent frontend codebase:
+  #   docker compose --profile fork up -d react-meilu
+  # See local_docs/g012 § "When to keep a branded React fork".
+
   react-meilu:
+    profiles: ["fork"]
     build:
       context: ../erpnext-ecommerce-meilu
       dockerfile: ../nexterp_monolith/Dockerfile.react
@@ -154,7 +166,6 @@ services:
         NEXT_PUBLIC_ERPNEXT_URL: https://meilu.erp.l.l0l.in
         ERPNEXT_URL: http://meilu.local:8000
     restart: unless-stopped
-    # API keys MUST come from .env.meilu only — do not fall back to site.local keys
     env_file:
       - .env.meilu
     environment:
@@ -166,6 +177,7 @@ services:
       - web
 
   react-bin:
+    profiles: ["fork"]
     build:
       context: ../erpnext-ecommerce-bin
       dockerfile: ../nexterp_monolith/Dockerfile.react
@@ -173,7 +185,6 @@ services:
         NEXT_PUBLIC_ERPNEXT_URL: https://bin.erp.l.l0l.in
         ERPNEXT_URL: http://bin.local:8000
     restart: unless-stopped
-    # API keys MUST come from .env.bin only — do not fall back to site.local keys
     env_file:
       - .env.bin
     environment:

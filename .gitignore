@@ -3,3 +3,5 @@ exports/*.sql
 .env.meilu
 .env.bin
 credentials-*.json
+tenant-api-keys.env
+tenant-api-keys.json
