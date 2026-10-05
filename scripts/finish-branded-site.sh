@@ -78,6 +78,13 @@ frappe.db.commit()
 print("seed:", json.dumps({k: seed_result.get(k) for k in ("status", "company") if k in seed_result}, default=str))
 print("items:", frappe.db.count("Item"), "companies:", frappe.db.count("Company"))
 
+# 3b) Presentation demo pack (sample orders + fake team) — lab/demo sites only.
+# Never run on paying tenants; wipe later via Settings → clear_presentation_demo.
+from erpnext.erpnext_integrations.ecommerce_api.presentation_demo_api import seed_presentation_demo
+demo_pack = seed_presentation_demo(reset=0)
+frappe.db.commit()
+print("presentation_demo:", json.dumps(demo_pack.get("status") or demo_pack, default=str))
+
 # 4) API keys + password
 from frappe.core.doctype.user.user import generate_keys
 from frappe.utils.password import update_password
@@ -93,6 +100,7 @@ out = {
     "item_count": frappe.db.count("Item"),
     "api_key": keys.get("api_key"),
     "api_secret": keys.get("api_secret"),
+    "presentation_demo": (demo_pack.get("status") or {}),
 }
 open("${CREDS_OUT}", "w").write(json.dumps(out, indent=2) + "\n")
 print(json.dumps(out, indent=2))
