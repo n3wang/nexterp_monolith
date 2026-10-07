@@ -152,6 +152,36 @@ services:
       - internal
       - web
 
+  # ─── MCP gateway for AI assistants (tenant admin MCP) ───────────────────────
+  # Caddy mounts it at <shop-host>/mcp* (tenant = Host) — see
+  # local_docs/g014_mcp_claude_connector.md. Holds the tenant API keys; clients
+  # only ever see their per-site mcp_… key. Independent image:
+  #   docker compose up -d --build mcp-erp
+  mcp-erp:
+    build:
+      context: ../mcp-erp
+    restart: unless-stopped
+    depends_on:
+      - erpnext
+    env_file:
+      - tenant-api-keys.env
+    environment:
+      ERPNEXT_URL: http://erpnext:8000
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8055
+      MCP_PATH: /mcp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8055), 2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - internal
+      - web
+
   # ─── Optional TRUE UI forks (not used for meilu/bin — they share blue/green) ─
   # Enable only when a client needs a divergent frontend codebase:
   #   docker compose --profile fork up -d react-meilu
