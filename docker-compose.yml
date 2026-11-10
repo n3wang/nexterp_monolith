@@ -66,10 +66,18 @@ services:
         aliases:
           - meilu.local
           - bin.local
+          - avellaneda.local
+          - sanrafael.local
+          - sanrafaelshop.local
+          - deposito.local
       web:
         aliases:
           - meilu.local
           - bin.local
+          - avellaneda.local
+          - sanrafael.local
+          - sanrafaelshop.local
+          - deposito.local
 
   # ─── ERPNext Dev/Test (on-demand, erp.test / localhost:1271) ────────────────
   # Not started by `docker compose up` or the deploy scripts (profiles: [dev]).
